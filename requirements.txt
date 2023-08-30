@@ -3,3 +3,4 @@ uvicorn~=0.22.0
 python-dotenv~=0.19.2
 fastapi~=0.97.0
 openai~=0.27.9
+slack_bolt~=1.18.0

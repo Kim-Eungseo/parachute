@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 from slack_bolt import App
@@ -8,6 +9,7 @@ from chatgpt_helper import send_chat_gpt
 
 # Load environment variables from .env file
 load_dotenv()
+QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
 
 # Initializes your app with your bot token
 app = App(
@@ -40,13 +42,14 @@ def callback(ch, method, properties, body):
 
     # Generate ChatGPT response to user prompt
     chatgpt_response = send_chat_gpt(message=chatgpt_prompt)
+    print(chatgpt_response)
 
     # Send code recommendation to Slack
-    post_response_to_slack(
-        slack_message=chatgpt_response,
-        slack_channel=slack_channel,
-        thread_ts=thread_ts
-    )
+    # post_response_to_slack(
+    #     slack_message=chatgpt_response,
+    #     slack_channel=slack_channel,
+    #     thread_ts=thread_ts
+    # )
 
 
 def main():
@@ -64,12 +67,13 @@ def main():
     channel = connection.channel()
 
     # Declare the queue
-    channel.queue_declare(queue='slack_messages')  # Use an appropriate queue name
+    channel.queue_declare(queue=QUEUE_NAME)  # Use an appropriate queue name
 
     # Set up the callback
-    channel.basic_consume(queue='slack_messages', on_message_callback=callback, auto_ack=True)
+    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
 
     # Start consuming messages
+    print("CONSUME")
     channel.start_consuming()
 
 
@@ -77,15 +81,17 @@ def main():
 @fastapi_app.on_event("startup")
 def startup_event():
     """ Code to run during startup """
+    logging.info("consumer startup")
     main()
 
 
 @fastapi_app.on_event("shutdown")
 def shutdown_event():
     """ Code to run during shutdown """
-    pass
+    logging.info("consumer shutdown")
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(fastapi_app, host="0.0.0.0", port=8000)

@@ -5,7 +5,7 @@ from slack_bolt import App
 from dotenv import load_dotenv
 from fastapi import FastAPI
 import pika
-from gpt_helper import send_to_gpt
+from gpt_helper import send_to_gpt, send_to_helper_agent
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,12 +40,10 @@ def callback(ch, method, properties, body):
     response to Slack
     """
     body = json.loads(body.decode('utf-8'))
-    gpt_prompt = body.get("prompt")
-
-    gpt_response = send_to_gpt(message=gpt_prompt)
-    print("RESPONSE: " + gpt_response)
+    gpt_response, gpt_prompt = "", body.get("prompt")
 
     if "channel" in body:
+        gpt_response = send_to_helper_agent(message=gpt_prompt)
         slack_channel = body.get("channel")
         thread_ts = body.get("thread_ts")
         post_response_to_slack(
@@ -55,11 +53,14 @@ def callback(ch, method, properties, body):
         )
 
     if "user" in body:
+        gpt_response = send_to_gpt(message=gpt_prompt)
         slack_user = body.get("user")
         send_to_user_in_slack(
             slack_message=gpt_response,
             slack_user=slack_user
         )
+
+    print("RESPONSE: " + gpt_response)
 
 
 def main():

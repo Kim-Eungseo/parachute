@@ -12,7 +12,6 @@ load_dotenv()
 # Initializes your app with your bot token and socket mode handler
 app = App(
     token=os.environ.get("SLACK_BOT_TOKEN")
-    # signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
 )
 
 # Connect to RabbitMQ
@@ -45,7 +44,7 @@ def handle_app_mention(event, client, message, say) -> None:
     channel = event["channel"]
     thread_ts = event["ts"]
 
-    client.chat_postMessage(channel=event['user'], text='got message properly')
+    client.chat_postMessage(channel=event['user'], text='Your request is successful')
 
     # Publish message to RabbitMQ
     connection_channel.basic_publish(

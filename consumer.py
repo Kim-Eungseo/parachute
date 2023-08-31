@@ -14,7 +14,6 @@ QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
 # Initializes your app with your bot token
 app = App(
     token=os.environ.get("SLACK_BOT_TOKEN"),
-    signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
 )
 
 fastapi_app = FastAPI()
@@ -45,11 +44,11 @@ def callback(ch, method, properties, body):
     print(chatgpt_response)
 
     # Send code recommendation to Slack
-    # post_response_to_slack(
-    #     slack_message=chatgpt_response,
-    #     slack_channel=slack_channel,
-    #     thread_ts=thread_ts
-    # )
+    post_response_to_slack(
+        slack_message=chatgpt_response,
+        slack_channel=slack_channel,
+        thread_ts=thread_ts
+    )
 
 
 def main():

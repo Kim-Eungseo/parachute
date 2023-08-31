@@ -113,7 +113,7 @@ def onboard_event(ack, body, event, client, message, say):
     client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=user_id)
 
 
-@app.shortcut("parachute_on_boarding")
+@app.shortcut("parachute_onboard")
 def onboard_shortcut(ack, body, event, client, message, say):
     user_id = event["user"]
     text = f"Welcome to the team, <@{user_id}>! 🎉 You can introduce yourself in this channel."

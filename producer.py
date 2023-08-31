@@ -5,12 +5,14 @@ from dotenv import load_dotenv
 import pika
 
 # Load environment variables from .env file
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+
 load_dotenv()
 
 # Initializes your app with your bot token and socket mode handler
 app = App(
-    token=os.environ.get("SLACK_BOT_TOKEN"),
-    signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
+    token=os.environ.get("SLACK_BOT_TOKEN")
+    # signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
 )
 
 # Connect to RabbitMQ
@@ -29,7 +31,7 @@ QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
 
 
 @app.event("app_mention")
-def handle_app_mention(event) -> None:
+def handle_app_mention(event, client, message, say) -> None:
     """
         Event handler - Invoked when the bot app is mentioned in a slack channel
         This function publishes the message it receives from Slack to RabbitMQ
@@ -42,6 +44,8 @@ def handle_app_mention(event) -> None:
     user = event["user"]
     channel = event["channel"]
     thread_ts = event["ts"]
+
+    client.chat_postMessage(channel=event['user'], text='got message properly')
 
     # Publish message to RabbitMQ
     connection_channel.basic_publish(
@@ -140,4 +144,4 @@ def open_modal(ack, body, client):
 
 # Start your app
 if __name__ == "__main__":
-    app.start(port=int(os.environ.get("PORT", 3000)))
+    SocketModeHandler(app, os.environ.get("SLACK_APP_TOKEN")).start()

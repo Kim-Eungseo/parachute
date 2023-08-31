@@ -26,16 +26,6 @@ connection = pika.BlockingConnection(
 )
 connection_channel = connection.channel()
 QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
-connection_channel.basic_publish(
-    exchange='',
-    routing_key=QUEUE_NAME,  # Use an appropriate queue name
-    body=json.dumps({
-        "prompt": "message",
-        "user": "user",
-        "channel": "channel",
-        "thread_ts": "thread_ts"
-    }, indent=4)
-)
 
 
 @app.event("app_mention")
@@ -82,6 +72,7 @@ def open_modal(ack, body, client):
         trigger_id=body["trigger_id"],
         # View payload
         view={
+            "callback_id": "open_modal",
             "title": {
                 "type": "plain_text",
                 "text": "Parachute prompt fuzzer",

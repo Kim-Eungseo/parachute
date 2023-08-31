@@ -30,7 +30,7 @@ QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
 
 
 @app.event("app_mention")
-def handle_app_mention(event, client, message, say) -> None:
+def handle_app_mention(ack, body, event, client, message, say) -> None:
     """
         Event handler - Invoked when the bot app is mentioned in a slack channel
         This function publishes the message it receives from Slack to RabbitMQ
@@ -43,8 +43,6 @@ def handle_app_mention(event, client, message, say) -> None:
     user = event["user"]
     channel = event["channel"]
     thread_ts = event["ts"]
-
-    client.chat_postMessage(channel=event['user'], text='Your request is successful')
 
     # Publish message to RabbitMQ
     connection_channel.basic_publish(
@@ -65,7 +63,7 @@ def handle_message_events(body, logger):
 
 
 # Listen for a shortcut invocation
-@app.shortcut("open_modal")
+@app.shortcut("open_parachute_modal")
 def open_modal(ack, body, client):
     # Acknowledge the command request
     ack()
@@ -75,7 +73,7 @@ def open_modal(ack, body, client):
         trigger_id=body["trigger_id"],
         # View payload
         view={
-            "callback_id": "open_modal",
+            "callback_id": "parachute_view",
             "title": {
                 "type": "plain_text",
                 "text": "Parachute prompt fuzzer",
@@ -115,10 +113,11 @@ def open_modal(ack, body, client):
                 },
                 {
                     "type": "input",
+                    "block_id": "system_prompt_input",
                     "element": {
                         "type": "plain_text_input",
                         "multiline": True,
-                        "action_id": "plain_text_input-action"
+                        "action_id": "system_prompt_action"
                     },
                     "label": {
                         "type": "plain_text",
@@ -139,6 +138,32 @@ def open_modal(ack, body, client):
             ]
         }
     )
+
+
+@app.view("parachute_view")
+def handle_submission(ack, body, client, view, logger):
+    sys_prompt = view["state"]["values"]["system_prompt_input"]["system_prompt_action"]
+    user = body["user"]["id"]
+
+    errors = {}
+    if sys_prompt is not None:
+        errors["system_prompt_input"] = "System prompt is not valid"
+
+    if len(errors) > 0:
+        ack(response_action="errors", errors=errors)
+        return
+
+    ack()
+
+    connection_channel.basic_publish(
+        exchange='',
+        routing_key=QUEUE_NAME,
+        body=json.dumps({
+            "prompt": sys_prompt,
+            "user": user
+        }, indent=4)
+    )
+
 
 
 # Start your app

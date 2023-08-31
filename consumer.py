@@ -5,7 +5,7 @@ from slack_bolt import App
 from dotenv import load_dotenv
 from fastapi import FastAPI
 import pika
-from chatgpt_helper import send_chat_gpt
+from gpt_helper import send_to_gpt
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,26 +29,37 @@ def post_response_to_slack(slack_message, slack_channel, thread_ts):
     )
 
 
+def send_to_user_in_slack(slack_user, slack_message):
+    message = f"\n {slack_message} \n"
+    app.client.chat_postMessage(channel=slack_user, text=message)
+
+
 def callback(ch, method, properties, body):
     """
-    The logic for sending messages to Open API and posting the
+    The logic for sending messages to Open AI and posting the
     response to Slack
     """
     body = json.loads(body.decode('utf-8'))
-    chatgpt_prompt = body.get("prompt")
-    slack_channel = body.get("channel")
-    thread_ts = body.get("thread_ts")
+    gpt_prompt = body.get("prompt")
 
-    # Generate ChatGPT response to user prompt
-    chatgpt_response = send_chat_gpt(message=chatgpt_prompt)
-    print(chatgpt_response)
+    gpt_response = send_to_gpt(message=gpt_prompt)
+    print("RESPONSE: " + gpt_response)
 
-    # Send code recommendation to Slack
-    post_response_to_slack(
-        slack_message=chatgpt_response,
-        slack_channel=slack_channel,
-        thread_ts=thread_ts
-    )
+    if "channel" in body:
+        slack_channel = body.get("channel")
+        thread_ts = body.get("thread_ts")
+        post_response_to_slack(
+            slack_message=gpt_response,
+            slack_channel=slack_channel,
+            thread_ts=thread_ts
+        )
+
+    if "user" in body:
+        slack_user = body.get("user")
+        send_to_user_in_slack(
+            slack_message=gpt_response,
+            slack_user=slack_user
+        )
 
 
 def main():
@@ -72,7 +83,6 @@ def main():
     channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
 
     # Start consuming messages
-    print("CONSUME")
     channel.start_consuming()
 
 

@@ -18,7 +18,7 @@ def __build_prompt(text: str) -> List:
     return messages
 
 
-def send_chat_gpt(message: str) -> Dict:
+def send_to_gpt(message: str) -> str:
     messages = __build_prompt(text=message)
 
     response = openai.ChatCompletion.create(

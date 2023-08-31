@@ -142,11 +142,11 @@ def open_modal(ack, body, client):
 
 @app.view("parachute_view")
 def handle_submission(ack, body, client, view, logger):
-    sys_prompt = view["state"]["values"]["system_prompt_input"]["system_prompt_action"]
+    sys_prompt = view["state"]["values"]["system_prompt_input"]["system_prompt_action"]['value']
     user = body["user"]["id"]
 
     errors = {}
-    if sys_prompt is not None:
+    if sys_prompt is None or sys_prompt == "":
         errors["system_prompt_input"] = "System prompt is not valid"
 
     if len(errors) > 0:

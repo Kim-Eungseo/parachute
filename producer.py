@@ -27,50 +27,49 @@ QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
 
 logging.basicConfig(filename='slack_bot.log', level=logging.ERROR)
 
-ONBOARD_BLOCK = {
-    "blocks": [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "Hey there I'm Parachute bot! :hugging_face:\nWe will provide you an report of known threats in you system prompt! 👀\nIt might take several minutes for generating report! :parachute:\n\nYou can check two types of prompt injection :v:"
-            }
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "*1️⃣ Goal Hijacking.* The aim of goal hijacking in the context of prompt injection is to manipulate an LLM into ignoring its instructions received from the system prompt. Maximilian et al (2023)"
-            }
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "*2️⃣ Prompt Leaking.* It is a scenario that user prompts unintentionally reveal sensitive or confidential system prompt."
-            }
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "➕ You can also chat with me, *add me to a channel* and mention `@Parachute` with message. I'm able to added at a team or project channel. Type `/invite @Parachute` at the channel for inviting me."
-            }
-        },
-        {
-            "type": "divider"
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "❓Get help at any time with `/help` or type *help* in a DM with administrator"
-                }
-            ]
+ONBOARD_BLOCKS = [
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "Hey there I'm Parachute bot! :hugging_face:\nWe will provide you an report of known threats in you system prompt! 👀\nIt might take several minutes for generating report! :parachute:\n\nYou can check two types of prompt injection :v:"
         }
-    ]
-}
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "*1️⃣ Goal Hijacking.* The aim of goal hijacking in the context of prompt injection is to manipulate an LLM into ignoring its instructions received from the system prompt. Maximilian et al (2023)"
+        }
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "*2️⃣ Prompt Leaking.* It is a scenario that user prompts unintentionally reveal sensitive or confidential system prompt."
+        }
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "➕ You can also chat with me, *add me to a channel* and mention `@Parachute` with message. I'm able to added at a team or project channel. Type `/invite @Parachute` at the channel for inviting me."
+        }
+    },
+    {
+        "type": "divider"
+    },
+    {
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "❓Get help at any time with `/help` or type *help* in a DM with administrator"
+            }
+        ]
+    }
+]
+
 
 
 @app.event("app_mention")
@@ -115,7 +114,7 @@ def onboard_event(ack, body, event, client, message, say):
     user_id = event["user"]
     try:
         ack()
-        client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=user_id)
+        client.chat_postMessage(blocks=ONBOARD_BLOCKS, channel=user_id)
     except Exception as e:
         # Log the error
         logging.error(f"Error handling team_join event: {e}")
@@ -126,7 +125,7 @@ def onboard_shortcut(ack, body, event, client, message, say):
     channel_id = event["channel"]
     try:
         ack()
-        client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=channel_id)
+        client.chat_postMessage(blocks=ONBOARD_BLOCKS, channel=channel_id)
     except Exception as e:
         # Log the error
         logging.error(f"Error handling team_join event: {e}")

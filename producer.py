@@ -89,9 +89,9 @@ def handle_app_mention(ack, body, event, client, message, say) -> None:
 
         # Connect to RabbitMQ
         with pika.BlockingConnection(connection_params) as connection:
-            with connection.channel() as channel:
+            with connection.channel() as connection_channel:
                 # Publish message to RabbitMQ
-                channel.basic_publish(
+                connection_channel.basic_publish(
                     exchange='',
                     routing_key=QUEUE_NAME,  # Use an appropriate queue name
                     body=json.dumps({
@@ -223,9 +223,9 @@ def handle_submission(ack, body, client, view, logger):
         client.chat_postMessage(channel=user, text="Your request is submitted! :thumbsup:")
 
         with pika.BlockingConnection(connection_params) as connection:
-            with connection.channel() as channel:
+            with connection.channel() as connection_channel:
                 # Publish message to RabbitMQ
-                channel.basic_publish(
+                connection_channel.basic_publish(
                     exchange='',
                     routing_key=QUEUE_NAME,
                     body=json.dumps({

@@ -42,7 +42,7 @@ def callback(ch, method, properties, body):
     body = json.loads(body.decode('utf-8'))
     gpt_response, gpt_prompt = "", body.get("prompt")
 
-    if "channel" in body:
+    if "thread_ts" in body:
         gpt_response = send_to_helper_agent(message=gpt_prompt)
         slack_channel = body.get("channel")
         thread_ts = body.get("thread_ts")
@@ -52,7 +52,7 @@ def callback(ch, method, properties, body):
             thread_ts=thread_ts
         )
 
-    if "user" in body:
+    elif "user" in body:
         gpt_response = send_to_gpt(message=gpt_prompt)
         slack_user = body.get("user")
         send_to_user_in_slack(

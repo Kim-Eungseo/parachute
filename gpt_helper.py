@@ -1,7 +1,8 @@
 import os
-from typing import List, Dict
-from dotenv import load_dotenv
+from typing import List
+
 import openai
+from dotenv import load_dotenv
 
 # Load the .env file
 load_dotenv()
@@ -20,7 +21,7 @@ Feel free to ask any questions related to AI security, threats, mitigations, and
 '''
 
 
-def __build_prompt(text: str) -> List:
+def __build_chat_messages(text: str) -> List:
     messages = [
         {"role": "user", "content": f"{text}"}
     ]
@@ -28,7 +29,7 @@ def __build_prompt(text: str) -> List:
     return messages
 
 
-def __build_helper_prompt(text: str) -> List:
+def __build_helper_chat_messages(text: str) -> List:
     messages = [
         {"role": "user", "content": f"{HELPER_SYSTEM_PROMPT}"},
         {"role": "user", "content": f"{text}"}
@@ -38,7 +39,7 @@ def __build_helper_prompt(text: str) -> List:
 
 
 def send_to_helper_agent(message: str) -> str:
-    messages = __build_helper_prompt(text=message)
+    messages = __build_helper_chat_messages(text=message)
 
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -49,7 +50,7 @@ def send_to_helper_agent(message: str) -> str:
 
 
 def send_to_gpt(message: str) -> str:
-    messages = __build_prompt(text=message)
+    messages = __build_chat_messages(text=message)
 
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",

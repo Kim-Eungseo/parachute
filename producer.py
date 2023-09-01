@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from slack_bolt import App
 from dotenv import load_dotenv
@@ -14,19 +15,17 @@ app = App(
     token=os.environ.get("SLACK_BOT_TOKEN")
 )
 
-# Connect to RabbitMQ
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters(
-        host=os.environ.get("RABBITMQ_HOST"),
-        port=int(os.environ.get("RABBITMQ_PORT", 5672)),
-        credentials=pika.PlainCredentials(
-            os.environ.get("RABBITMQ_USERNAME"),
-            os.environ.get("RABBITMQ_PASSWORD")
-        )
+connection_params = pika.ConnectionParameters(
+    host=os.environ.get("RABBITMQ_HOST"),
+    port=int(os.environ.get("RABBITMQ_PORT", 5672)),
+    credentials=pika.PlainCredentials(
+        os.environ.get("RABBITMQ_USERNAME"),
+        os.environ.get("RABBITMQ_PASSWORD")
     )
 )
-connection_channel = connection.channel()
 QUEUE_NAME = os.environ.get("RABBITMQ_QUEUE_NAME")
+
+logging.basicConfig(filename='slack_bot.log', level=logging.ERROR)
 
 ONBOARD_BLOCK = {
     "blocks": [
@@ -77,29 +76,33 @@ ONBOARD_BLOCK = {
 @app.event("app_mention")
 def handle_app_mention(ack, body, event, client, message, say) -> None:
     """
-        Event handler - Invoked when the bot app is mentioned in a slack channel
-        This function publishes the message it receives from Slack to RabbitMQ
-
-        Args:
-        - event
-        - say
+    Event handler - Invoked when the bot app is mentioned in a Slack channel
+    This function publishes the message it receives from Slack to RabbitMQ
     """
-    message = event["text"]
-    user = event["user"]
-    channel = event["channel"]
-    thread_ts = event["ts"]
+    try:
+        ack()  # Acknowledge the event immediately to avoid timeouts
 
-    # Publish message to RabbitMQ
-    connection_channel.basic_publish(
-        exchange='',
-        routing_key=QUEUE_NAME,  # Use an appropriate queue name
-        body=json.dumps({
-            "prompt": message,
-            "user": user,
-            "channel": channel,
-            "thread_ts": thread_ts
-        }, indent=4)
-    )
+        message = event.get("text", "")
+        user = event.get("user", "")
+        channel = event.get("channel", "")
+        thread_ts = event.get("ts", "")
+
+        # Connect to RabbitMQ
+        with pika.BlockingConnection(connection_params) as connection:
+            with connection.channel() as channel:
+                # Publish message to RabbitMQ
+                channel.basic_publish(
+                    exchange='',
+                    routing_key=QUEUE_NAME,  # Use an appropriate queue name
+                    body=json.dumps({
+                        "prompt": message,
+                        "user": user,
+                        "channel": channel,
+                        "thread_ts": thread_ts
+                    }, indent=4)
+                )
+    except Exception as e:
+        print(f"Error: {str(e)}")
 
 
 @app.event("message")
@@ -110,14 +113,23 @@ def handle_message_events(body, logger):
 @app.event("team_join")
 def onboard_event(ack, body, event, client, message, say):
     user_id = event["user"]
-    client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=user_id)
+    try:
+        ack()
+        client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=user_id)
+    except Exception as e:
+        # Log the error
+        logging.error(f"Error handling team_join event: {e}")
 
 
 @app.shortcut("parachute_onboard")
 def onboard_shortcut(ack, body, event, client, message, say):
-    user_id = event["user"]
-    text = f"Welcome to the team, <@{user_id}>! 🎉 You can introduce yourself in this channel."
-    client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=user_id)
+    channel_id = event["channel"]
+    try:
+        ack()
+        client.chat_postMessage(blocks=ONBOARD_BLOCK, channel=channel_id)
+    except Exception as e:
+        # Log the error
+        logging.error(f"Error handling team_join event: {e}")
 
 
 # Listen for a shortcut invocation
@@ -200,28 +212,30 @@ def open_modal(ack, body, client):
 
 @app.view("parachute_view")
 def handle_submission(ack, body, client, view, logger):
-    sys_prompt = view["state"]["values"]["system_prompt_input"]["system_prompt_action"]['value']
-    user = body["user"]["id"]
+    try:
+        sys_prompt = view["state"]["values"]["system_prompt_input"]["system_prompt_action"]["value"]
+        user = body["user"]["id"]
 
-    errors = {}
-    if sys_prompt is None or sys_prompt == "":
-        errors["system_prompt_input"] = "System prompt is not valid"
+        if not sys_prompt:
+            raise ValueError("System prompt is not valid")  # TODO: raise is expensive?
 
-    if len(errors) > 0:
-        ack(response_action="errors", errors=errors)
-        return
+        ack()
+        client.chat_postMessage(channel=user, text="Your request is submitted! :thumbsup:")
 
-    ack()
-    client.chat_postMessage(channel=user, text="Your request is submitted! :thumbsup:")
+        with pika.BlockingConnection(connection_params) as connection:
+            with connection.channel() as channel:
+                # Publish message to RabbitMQ
+                channel.basic_publish(
+                    exchange='',
+                    routing_key=QUEUE_NAME,
+                    body=json.dumps({
+                        "prompt": sys_prompt,
+                        "user": user
+                    }, indent=4))
 
-    connection_channel.basic_publish(
-        exchange='',
-        routing_key=QUEUE_NAME,
-        body=json.dumps({
-            "prompt": sys_prompt,
-            "user": user
-        }, indent=4)
-    )
+    except Exception as e:
+        logger.error(f"Error handling parachute_view submission: {e}")
+        ack(response_action="errors", errors={"system_prompt_input": str(e)})
 
 
 # Start your app

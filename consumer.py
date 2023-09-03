@@ -148,11 +148,11 @@ def callback(ch, method, properties, body):
                 tested_prompt=check_result['tested_prompt'],
                 bad_output=check_result['bad_output']
             )
-        send_to_user_in_slack(
-            slack_message=gpt_response,
-            slack_user=slack_user,
-            blocks=blocks
-        )
+            send_to_user_in_slack(
+                slack_message=gpt_response,
+                slack_user=slack_user,
+                blocks=blocks
+            )
 
     print("RESPONSE: " + gpt_response)
 

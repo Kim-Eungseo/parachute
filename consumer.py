@@ -1,11 +1,11 @@
+import copy
 import logging
-import os
-import json
-from slack_bolt import App
-from dotenv import load_dotenv
-from fastapi import FastAPI
+
 import pika
-from gpt_helper import send_to_gpt, send_to_helper_agent
+from fastapi import FastAPI
+from slack_bolt import App
+
+from fuzzer import *
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,6 +18,92 @@ app = App(
 
 fastapi_app = FastAPI()
 
+BLOCK_SAMPLE = [
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "We found some vulnerability in you system prompt"
+        },
+        "accessory": {
+            "type": "overflow",
+            "options": [
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "emoji": True,
+                        "text": "Option One"
+                    },
+                    "value": "value-0"
+                },
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "emoji": True,
+                        "text": "Option Two"
+                    },
+                    "value": "value-1"
+                },
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "emoji": True,
+                        "text": "Option Three"
+                    },
+                    "value": "value-2"
+                },
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "emoji": True,
+                        "text": "Option Four"
+                    },
+                    "value": "value-3"
+                }
+            ]
+        }
+    },
+    {
+        "type": "divider"
+    }
+]
+
+
+def generate_report_block(system_prompt, tested_prompt, bad_output):
+    return [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Your system prompt provided*\n: " + system_prompt
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Our tested prompt*\n: " + tested_prompt
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Not desired output*\n: " + bad_output
+            }
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "plain_text",
+                    "emoji": True,
+                    "text": "Prompt injection pentesting"
+                }
+            ]
+        }
+    ]
+
 
 def post_response_to_slack(slack_message, slack_channel, thread_ts):
     message = f"\n {slack_message} \n"
@@ -29,9 +115,9 @@ def post_response_to_slack(slack_message, slack_channel, thread_ts):
     )
 
 
-def send_to_user_in_slack(slack_user, slack_message):
+def send_to_user_in_slack(slack_user, slack_message, blocks=None):
     message = f"\n {slack_message} \n"
-    app.client.chat_postMessage(channel=slack_user, text=message)
+    app.client.chat_postMessage(channel=slack_user, text=message, blocks=blocks)
 
 
 def callback(ch, method, properties, body):
@@ -53,11 +139,19 @@ def callback(ch, method, properties, body):
         )
 
     elif "user" in body:
-        gpt_response = send_to_gpt(message=gpt_prompt)
+        check_results = verify_system_prompt(system_prompt=gpt_prompt)
         slack_user = body.get("user")
+        blocks = copy.deepcopy(BLOCK_SAMPLE)
+        for check_result in check_results:
+            blocks += generate_report_block(
+                system_prompt=check_result['system_prompt'],
+                tested_prompt=check_result['tested_prompt'],
+                bad_output=check_result['bad_output']
+            )
         send_to_user_in_slack(
             slack_message=gpt_response,
-            slack_user=slack_user
+            slack_user=slack_user,
+            blocks=blocks
         )
 
     print("RESPONSE: " + gpt_response)

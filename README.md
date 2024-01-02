@@ -1,1 +1,1 @@
-## Hi, this is parachute
+## Parachute, LLM Vulnerability scanner prototype
